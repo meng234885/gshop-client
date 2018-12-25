@@ -1,18 +1,22 @@
 <template>
   <section class="profile">
-    <NavHeader title="我的"></NavHeader>
-    <section class="profile-number" @click="$router.push('/login')">
+    <nav-header title="我的"/>
+    <section class="profile-number" @click="$router.push(user._id ? '/userinfo' : '/login')">
       <a href="javascript:" class="profile-link">
         <div class="profile_image">
           <i class="iconfont icon-person"></i>
         </div>
         <div class="user-info">
-          <p class="user-info-top">登录/注册</p>
-          <p>
-                <span class="user-icon">
-                  <i class="iconfont icon-shouji icon-mobile"></i>
-                </span>
-            <span class="icon-mobile-number">暂无绑定手机号</span>
+          <p class="user-info-top" v-if="!user.phone">
+            {{user.name ? user.name : '登录/注册'}}
+          </p>
+          <p v-if="!user.name">
+            <span class="user-icon">
+              <i class="iconfont icon-shouji icon-mobile"></i>
+            </span>
+            <span class="icon-mobile-number">
+              {{user.phone ? user.phone : '暂无绑定手机号'}}
+            </span>
           </p>
         </div>
         <span class="arrow">
@@ -88,48 +92,40 @@
         </div>
       </a>
     </section>
+
+    <section class="profile_my_order border-1px" v-if="user._id">
+      <mt-button type="danger" style="width: 100%" @click.prevent="logout">退出登陆</mt-button>
+    </section>
   </section>
 </template>
 
 <script>
-export default {
-  data () {
-    return {}
+  import {mapState} from 'vuex'
+  import {MessageBox} from 'mint-ui'
+  import NavHeader from "../../components/NavHeader/NavHeader.vue";
+  // import MtButton from "../../../node_modules/mint-ui/packages/button/src/button.vue";
+  export default {
+    computed: {
+      ...mapState(['user'])
+    },
+    methods: {
+      logout () {
+        MessageBox.confirm('确定退出吗?').then(action => {
+          this.$store.dispatch('logout')
+        }).catch(action =>{
+
+        })
+      }
+    },
+    components: {
+      NavHeader}
   }
-}
 </script>
 
 <style lang="stylus" rel="stylesheet/stylus" scoped>
   @import "../../common/stylus/mixins.styl"
   .profile //我的
     width 100%
-    .header //头部公共css
-      background-color #02a774
-      position fixed
-      z-index 100
-      left 0
-      top 0
-      width 100%
-      height 45px
-      .header_search
-        position absolute
-        left 15px
-        top 50%
-        transform translateY(-50%)
-        width 10%
-        height 50%
-        .iconfont
-          font-size 22px
-          color #fff
-      .header_title
-        position absolute
-        top 50%
-        left 50%
-        transform translate(-50%, -50%)
-        width 30%
-        color #fff
-        font-size 22px
-        text-align center
     .profile-number
       margin-top 45.5px
       .profile-link

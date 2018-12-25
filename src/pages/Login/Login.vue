@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="login_content">
-        <form>
-          <div :class="{on:loginWhy}">
+        <form >
+          <div :class="{on:loginWhy}" >
             <section class="login_message">
               <input type="tel" maxlength="11" placeholder="手机号" v-model="phone">
               <button :disabled="!loginWhy || computTime>0" class="get_verification" :class="{right_phone_number : isRightPhone}" @click.prevent="sendCode">
@@ -18,7 +18,7 @@
               </button>
             </section>
             <section class="login_verification">
-              <input type="tel" maxlength="8" placeholder="验证码">
+              <input type="tel" maxlength="8" placeholder="验证码" v-model="code">
             </section>
             <section class="login_hint">
               温馨提示：未注册硅谷外卖帐号的手机号，登录时将自动注册，且代表已同意
@@ -28,22 +28,22 @@
           <div :class="{on:!loginWhy}">
             <section>
               <section class="login_message">
-                <input type="tel" maxlength="11" placeholder="手机/邮箱/用户名">
+                <input type="tel" maxlength="11" placeholder="用户名" v-model="name">
               </section>
               <section class="login_verification">
-                <input :type="isShowPsw? 'text' : 'password'" maxlength="8" placeholder="密码">
+                <input :type="isShowPsw? 'text' : 'password'" maxlength="8" placeholder="密码" v-model="pwd">
                 <div class="switch_button " :class="isShowPsw? 'on' :'off'" @click="isShowPsw=!isShowPsw">
                   <div class="switch_circle" :class="{right:isShowPsw}"></div>
                   <span class="switch_text">{{isShowPsw?'abc' :''}}</span>
                 </div>
               </section>
               <section class="login_message">
-                <input type="text" maxlength="11" placeholder="验证码">
-                <img class="get_verification" src="./images/captcha.svg" alt="captcha">
+                <input type="text" maxlength="11" placeholder="验证码" v-model="captcha">
+                <img  ref="captcha" class="get_verification" src="http://localhost:5000/captcha" alt="captcha" @click="updataCaptcha">
               </section>
             </section>
           </div>
-          <button class="login_submit">登录</button>
+          <button class="login_submit" @click.prevent="login">登录</button>
         </form>
         <a href="javascript:;" class="about_us">关于我们</a>
       </div>
@@ -55,30 +55,77 @@
 </template>
 
 <script>
+  import {reqPwdLogin,reqSendCode,reqSmsLogin} from '../../api/index'
+  import {Toast,MessageBox} from 'mint-ui'
+
   export default {
     data () {
       return {
-        loginWhy:true,
-        phone:'',//手机号
-        computTime:0,
-        isShowPsw:false
+        loginWhy: false,
+        phone: '',//手机号
+        code: '',
+        name: '',
+        pwd: '',
+        captcha: '',
+        computTime: 0,
+        isShowPsw: false
       }
     },
-    computed:{
-      isRightPhone(){
+    computed: {
+      isRightPhone () {
         return /^1\d{10}$/.test(this.phone)
-      }
-    },
-    methods:{
-      sendCode(){
-        this.computTime=30
+      },
 
-        const timer=setInterval(()=>{
+    },
+    methods: {
+      async sendCode () {
+        this.computTime = 30
+
+        const timer = setInterval(() => {
           this.computTime--
-          if (this.computTime<=0) {
+          if (this.computTime <= 0) {
+            this.computTime = 0
             clearInterval(timer)
           }
-        },1000)
+        }, 1000)
+        const result = await reqSendCode(this.phone)
+        if (result.code === 0) {
+          Toast('发送验证码成功！', 1);
+        } else {
+          this.computTime = 0
+          MessageBox.alert('提示', result.msg);
+        }
+      },
+      updataCaptcha () {
+        this.$refs.captcha.src = 'http://localhost:5000/captcha?time=' + Date.now()
+      },
+      async login () {
+        let result
+        const {phone, code, name,pwd, captcha, loginWhy} = this
+        if (loginWhy) {
+          if (!this.isRightPhone) {
+            return MessageBox.alert('手机号输入错误！')
+          } else if (!/^\d{6}$/.test(code)) {
+            return MessageBox.alert('验证码输入错误！')
+          }
+          result = await reqSmsLogin(phone, code)
+        } else { // 密码登陆
+          if (!name.trim()) {
+            return MessageBox.alert('必须输入用户名')
+          } else if (!pwd.trim()) {
+            return MessageBox.alert('必须输入密码')
+          } else if (captcha.length !== 4) {
+            return MessageBox.alert('必须输入4位的验证码')
+          }
+          result = await reqPwdLogin({name, pwd, captcha})
+        }
+        if (result.code===0) {
+          const user = result.data
+          this.$store.dispatch('saveUser',user)
+          this.$router.replace('./profile')
+        }else {
+          MessageBox.alert(result.msg)
+        }
       }
     }
   }
